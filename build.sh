@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")" && pwd)
-SOURCE=${DROPBEAR_SOURCE:-/var/home/liu/tmp1/dropbear}
+: "${DROPBEAR_SOURCE:?Set DROPBEAR_SOURCE to the path of the dropbear source checkout}"
 BUILD="$ROOT/build"
 SRC="$BUILD/src"
 OUT="$BUILD/out"
