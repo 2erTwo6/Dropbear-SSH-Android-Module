@@ -7,6 +7,39 @@ mount or modify `/system`.
 The bundled Dropbear source revision is `e470317914be7f78791baed62b17578b1c934742`
 from upstream `main`, built with Android NDK r29 for API 23.
 
+## Build from source
+
+**Requirements**
+
+| Component            | Version      |
+|----------------------|--------------|
+| Android NDK          | r29          |
+| Go                   | 1.25+        |
+| Dropbear source      | `mkj/dropbear` upstream |
+| System tools         | `make`, `patch`, `zip` |
+
+**Steps**
+
+```sh
+# 1. Clone this repo
+git clone https://github.com/2erTwo6/Dropbear-SSH-Android-Module.git
+cd Dropbear-SSH-Android-Module
+
+# 2. Clone Dropbear source
+git clone https://github.com/mkj/dropbear.git /tmp/dropbear-upstream
+
+# 3. Build all binaries
+ANDROID_NDK_HOME=/path/to/android-ndk-r29 \
+DROPBEAR_SOURCE=/tmp/dropbear-upstream \
+GOFLAGS=-mod=mod \
+    bash build.sh
+
+# 4. Package the module ZIP
+DROPBEAR_SOURCE=/tmp/dropbear-upstream bash package.sh
+```
+
+Build output is at `build/out/`. The final ZIP is at the repo root.
+
 ## Persistent files
 
 - Configuration: `/data/adb/dropbear-ksu/config`
