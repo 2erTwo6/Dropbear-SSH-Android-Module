@@ -14,12 +14,7 @@ cp "$ROOT/build/out/dropbearconvert" "$STAGE/bin/"
 cp "$ROOT/build/out/scp" "$STAGE/bin/"
 cp "$ROOT/build/out/sftp-server" "$STAGE/bin/"
 mkdir -p "$STAGE/legal"
-
-if [ -n "${DROPBEAR_SOURCE:-}" ] && [ -f "$DROPBEAR_SOURCE/LICENSE" ]; then
-    cp "$DROPBEAR_SOURCE/LICENSE" "$STAGE/legal/dropbear-LICENSE"
-else
-    cp /var/home/liu/tmp1/dropbear/LICENSE "$STAGE/legal/dropbear-LICENSE"
-fi
+cp /var/home/liu/tmp1/dropbear/LICENSE "$STAGE/legal/dropbear-LICENSE"
 cp "$ROOT/sftp-server/LICENSE.pkg-sftp" "$STAGE/legal/pkg-sftp-LICENSE"
 cp "$ROOT/sftp-server/LICENSE.kr-fs" "$STAGE/legal/kr-fs-LICENSE"
 cp "$ROOT/sftp-server/LICENSE.x-crypto" "$STAGE/legal/x-crypto-LICENSE"
