@@ -1,0 +1,4 @@
+build/
+sftp-server/go.sum
+dropbear-ksu-v*.zip
+

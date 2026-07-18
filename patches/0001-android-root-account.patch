@@ -1,0 +1,51 @@
+diff --git a/src/common-session.c b/src/common-session.c
+index 89d88ac..d5a1d7c 100644
+--- a/src/common-session.c
++++ b/src/common-session.c
+@@ -654,6 +654,27 @@ const char* get_user_shell() {
+ }
+ void fill_passwd(const char* username) {
+ 	struct passwd *pw = NULL;
++#ifdef __ANDROID__
++	/* Android has no conventional root passwd entry. This build is a
++	 * dedicated, key-only root service with its state under /data/adb. */
++	if (strcmp(username, "root") == 0) {
++		if (ses.authstate.pw_name)
++			m_free(ses.authstate.pw_name);
++		if (ses.authstate.pw_dir)
++			m_free(ses.authstate.pw_dir);
++		if (ses.authstate.pw_shell)
++			m_free(ses.authstate.pw_shell);
++		if (ses.authstate.pw_passwd)
++			m_free(ses.authstate.pw_passwd);
++		ses.authstate.pw_uid = 0;
++		ses.authstate.pw_gid = 0;
++		ses.authstate.pw_name = m_strdup("root");
++		ses.authstate.pw_dir = m_strdup(ANDROID_ROOT_HOME);
++		ses.authstate.pw_shell = m_strdup("/system/bin/sh");
++		ses.authstate.pw_passwd = m_strdup("!!");
++		return;
++	}
++#endif
+ 	if (ses.authstate.pw_name)
+ 		m_free(ses.authstate.pw_name);
+ 	if (ses.authstate.pw_dir)
+
+diff --git a/src/svr-auth.c b/src/svr-auth.c
+index 667e4b2..b4a4543 100644
+--- a/src/svr-auth.c
++++ b/src/svr-auth.c
+@@ -501,6 +501,13 @@ static int utmp_gid(gid_t *ret_gid) {
+ void svr_switch_user(void) {
+ 	assert(ses.authstate.authdone);
+ 
++#ifdef __ANDROID__
++	/* The dedicated Android account already is UID/GID 0. Avoid initgroups(),
++	 * which depends on Android's synthetic passwd/group implementation. */
++	if (ses.authstate.pw_uid == 0 && ses.authstate.pw_gid == 0)
++		return;
++#endif
++
+ 	/* We can only change uid/gid as root ... */
+ 	if (getuid() == 0) {
+ 

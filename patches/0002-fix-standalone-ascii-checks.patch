@@ -1,0 +1,37 @@
+diff --git a/src/compat.c b/src/compat.c
+index bfcbf9c..a788e5b 100644
+--- a/src/compat.c
++++ b/src/compat.c
+@@ -269,7 +269,8 @@ initshells(void)
+ 		if (*cp == '#' || *cp == '\0')
+ 			continue;
+ 		*sp++ = cp;
+-		while (!ascii_isspace(*cp) && *cp != '#' && *cp != '\0')
++		while (*cp != ' ' && *cp != '\t' && *cp != '\n'
++				&& *cp != '\r' && *cp != '#' && *cp != '\0')
+ 			cp++;
+ 		*cp++ = '\0';
+ 	}
+diff --git a/src/scp.c b/src/scp.c
+index 23c8c10..b96735e 100644
+--- a/src/scp.c
++++ b/src/scp.c
+@@ -1211,7 +1211,7 @@ sink(int argc, char **argv, const char *src)
+ 		if (*cp++ != ' ')
+ 			SCREWUP("mode not delimited");
+ 
+-		for (size = 0; ascii_isdigit(*cp);)
++		for (size = 0; *cp >= '0' && *cp <= '9';)
+ 			size = size * 10 + (*cp++ - '0');
+ 		if (*cp++ != ' ')
+ 			SCREWUP("size not delimited");
+@@ -1498,7 +1498,8 @@ okname(char *cp0)
+ 		c = (int)*cp;
+ 		if (c & 0200)
+ 			goto bad;
+-		if (!ascii_isalpha(c) && !ascii_isdigit(c)) {
++		if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
++				&& !(c >= '0' && c <= '9')) {
+ 			switch (c) {
+ 			case '\'':
+ 			case '"':

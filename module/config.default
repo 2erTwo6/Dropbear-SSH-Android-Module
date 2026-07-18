@@ -1,0 +1,8 @@
+# Dropbear SSH server settings.
+# LISTEN_ADDRESS may be an IPv4 address, hostname, or bracketed IPv6 address.
+LISTEN_ADDRESS=127.0.0.1
+PORT=2222
+KEEPALIVE=60
+IDLE_TIMEOUT=0
+ALLOW_PORT_FORWARDING=0
+AUTOSTART=1

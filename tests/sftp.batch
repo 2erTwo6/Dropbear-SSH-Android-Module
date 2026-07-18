@@ -1,0 +1,8 @@
+pwd
+ls
+mkdir sftp-protocol-test
+put README.md sftp-protocol-test/README.md
+ls -l sftp-protocol-test/README.md
+get sftp-protocol-test/README.md /tmp/dropbear-ksu-sftp-test-README.md
+rm sftp-protocol-test/README.md
+rmdir sftp-protocol-test
