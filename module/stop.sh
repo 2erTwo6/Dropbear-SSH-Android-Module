@@ -23,3 +23,4 @@ if kill -0 "$PID" 2>/dev/null; then
 fi
 rm -f "$PIDFILE"
 log_message "dropbear stopped"
+update_module_description

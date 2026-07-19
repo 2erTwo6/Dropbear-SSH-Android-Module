@@ -10,9 +10,37 @@ HOSTKEY="$DATADIR/dropbear_ed25519_host_key"
 DROPBEAR="$MODDIR/bin/dropbear"
 DROPBEARKEY="$MODDIR/bin/dropbearkey"
 
+MODULE_PROP="$MODDIR/module.prop"
+BASE_DESCRIPTION="Root Dropbear SSH server for arm64 Android, key authentication only. Supports KernelSU and Magisk."
+
 log_message() {
     mkdir -p "$DATADIR"
     printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOGFILE"
+}
+
+update_module_description() {
+    local status line pid addr port
+    if read_pid; then
+        pid=$PID
+        if load_config 2>/dev/null; then
+            addr=$LISTEN_ADDRESS
+            port=$PORT
+        fi
+        [ -n "$addr" ] || addr=?
+        [ -n "$port" ] || port=?
+        status="Running (PID $pid, $addr:$port)"
+    else
+        status="Stopped"
+        if [ -r "$LOGFILE" ] && ! load_config 2>/dev/null; then
+            status="Stopped (invalid config)"
+        fi
+    fi
+    [ -w "$MODULE_PROP" ] || return 0
+    grep -q '^description=' "$MODULE_PROP" 2>/dev/null || return 0
+    desc_line="description=$BASE_DESCRIPTION | Status: $status"
+    awk -v d="$desc_line" '/^description=/{print d; next}1' \
+        "$MODULE_PROP" > "$MODULE_PROP.tmp" 2>/dev/null \
+        && mv -f "$MODULE_PROP.tmp" "$MODULE_PROP"
 }
 
 read_pid() {

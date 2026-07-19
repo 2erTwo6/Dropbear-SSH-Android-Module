@@ -109,6 +109,7 @@ The compiled binaries will be output to `build/out/`, and the final flashable mo
 
 ## Changelog
 
+- **v1.3.0**: The module description now reflects the live running status (Running with PID and listen address, or Stopped) shown directly in KernelSU Manager / Magisk app.
 - **v1.2.0**: Added support for installation on both KernelSU and Magisk.
 - **v1.1.1**: Set the default initial directory of SFTP to `/sdcard`.
 - **v1.1.0**: Integrated a static arm64 SFTP subsystem server based on `github.com/pkg/sftp`.

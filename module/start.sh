@@ -49,3 +49,4 @@ if ! kill -0 "$PID" 2>/dev/null; then
 fi
 
 log_message "dropbear started with PID $PID"
+update_module_description

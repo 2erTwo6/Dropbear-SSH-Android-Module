@@ -3,7 +3,14 @@
 MODDIR=${0%/*}
 . "$MODDIR/lib.sh"
 
-load_config || exit 0
-[ "$AUTOSTART" = 1 ] || exit 0
+load_config || {
+    update_module_description
+    exit 0
+}
 
-"$MODDIR/start.sh" &
+if [ "$AUTOSTART" = 1 ]; then
+    update_module_description
+    "$MODDIR/start.sh" &
+else
+    update_module_description
+fi

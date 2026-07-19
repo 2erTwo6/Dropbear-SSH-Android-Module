@@ -11,6 +11,7 @@ else
         load_config
         echo "Dropbear SSH started on $LISTEN_ADDRESS:$PORT"
     else
+        update_module_description
         echo "Dropbear SSH failed to start"
         echo "Log: $LOGFILE"
         exit 1
