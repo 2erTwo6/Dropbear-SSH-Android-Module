@@ -120,6 +120,7 @@ jobs:
           file build/out/*
 
       - name: Package module ZIP
+        id: package
         run: |
           export DROPBEAR_SOURCE="$GITHUB_WORKSPACE/dropbear-upstream"
           bash package.sh
@@ -132,12 +133,14 @@ jobs:
               exit 1
             fi
           fi
+          echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=${ZIP_FILE%.zip}" >> "$GITHUB_OUTPUT"
 
       - name: Upload module ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dropbear-ksu-module
-          path: dropbear-ksu-v*.zip
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: ${{ steps.package.outputs.zip_file }}
           if-no-files-found: error
           compression-level: 0
 
