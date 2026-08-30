@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")" && pwd)
 SOURCE=${DROPBEAR_SOURCE:-/var/home/liu/tmp1/dropbear}
 STAGE="$ROOT/build/package"
-OUTPUT="$ROOT/dropbear-ksu-v1.3.0-arm64.zip"
+OUTPUT="$ROOT/dropbear-ksu-v1.4.0-arm64.zip"
 
 rm -rf "$STAGE" "$OUTPUT"
 mkdir -p "$STAGE/bin"
@@ -22,6 +22,8 @@ cp "$ROOT/sftp-server/LICENSE.x-crypto" "$STAGE/legal/x-crypto-LICENSE"
 
 chmod 0755 "$STAGE"/*.sh "$STAGE/bin"/*
 chmod 0644 "$STAGE/module.prop" "$STAGE/config.default"
+find "$STAGE/webroot" -type d -exec chmod 0755 {} + 2>/dev/null || true
+find "$STAGE/webroot" -type f -exec chmod 0644 {} + 2>/dev/null || true
 chmod 0644 "$STAGE/legal/dropbear-LICENSE"
 chmod 0644 "$STAGE/legal/pkg-sftp-LICENSE"
 chmod 0644 "$STAGE/legal/kr-fs-LICENSE"

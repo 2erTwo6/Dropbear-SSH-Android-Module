@@ -54,6 +54,7 @@ set_perm "$MODPATH/service.sh" 0 0 0755
 set_perm "$MODPATH/action.sh" 0 0 0755
 set_perm "$MODPATH/uninstall.sh" 0 0 0755
 set_perm "$MODPATH/lib.sh" 0 0 0755
+set_perm "$MODPATH/webui.sh" 0 0 0755
 set_perm "$MODPATH/config.default" 0 0 0644
 set_perm "$MODPATH/module.prop" 0 0 0644
 
@@ -118,7 +119,8 @@ ui_print ""
 ui_print "Configuration: $CONFIG"
 ui_print "Persistent data: $DATADIR"
 if [ "$KSU" = true ]; then
-    ui_print "Use the action button in KernelSU Manager to start/stop SSH."
+    ui_print "Tap the module card or WebUI icon in KernelSU Manager to open WebUI."
+    ui_print "The action button still toggles SSH start/stop."
 else
     ui_print "Use the action button in Magisk Manager to start/stop SSH."
 fi

@@ -51,9 +51,21 @@ Ensure your computer and phone are connected to the same network. Replace `PHONE
     ```
 
 ### Step 5: Managing the Service
-To toggle the SSH service on/off or to apply configuration changes, simply click the **Action** button next to this module inside KernelSU Manager or Magisk app.
+
+**KernelSU Manager (WebUI):** Click the **WebUI** button (or the module card) inside KernelSU Manager to open the management console. The WebUI provides live status detection, start/stop service shortcuts, client key regeneration, and listen IP:port configuration.
+
+**Magisk app:** Click the **Action** button next to this module to toggle the SSH service on/off.
 
 ---
+
+## WebUI
+
+The module ships a KernelSU WebUI (`webroot/index.html`). It is backed by `webui.sh` and provides:
+
+- **Status detection:** running state, PID, listen address, port, keepalive/idle timeouts, port-forwarding flag, and the latest daemon log.
+- **Quick service control:** start, stop, and restart Dropbear with one tap.
+- **Key regeneration:** generate a new Ed25519 client key pair (back up the previous keys, install the new public key into `authorized_keys`, and export the new OpenSSH private key) or a new Ed25519 server host key; Dropbear is restarted automatically when needed.
+- **Listen address / port configuration:** edit `LISTEN_ADDRESS` and `PORT` in `/data/adb/dropbear-ksu/config`; the service is restarted automatically when it is running.
 
 ## File Paths
 
@@ -109,6 +121,7 @@ The compiled binaries will be output to `build/out/`, and the final flashable mo
 
 ## Changelog
 
+- **v1.4.0**: Added a KernelSU WebUI. The management console supports status detection, quick start/stop/restart, client/server key pair regeneration, and listen IP:port configuration.
 - **v1.3.0**: The module description now reflects the live running status (Running with PID and listen address, or Stopped) shown directly in KernelSU Manager / Magisk app.
 - **v1.2.0**: Added support for installation on both KernelSU and Magisk.
 - **v1.1.1**: Set the default initial directory of SFTP to `/sdcard`.

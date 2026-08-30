@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dropbear SSH 控制台</title>
+<style>
+  :root {
+    --bg: #101418;
+    --bg-card: #1a2027;
+    --bg-input: #0f1317;
+    --border: #2c3742;
+    --text: #e6edf3;
+    --muted: #9aa8b5;
+    --accent: #4da3ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 18px 16px calc(28px + env(safe-area-inset-bottom));
+  }
+  h1 { font-size: 20px; font-weight: 650; letter-spacing: .2px; }
+  .subtitle { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 14px;
+  }
+  .card h2 {
+    font-size: 13px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .status-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 650;
+  }
+  .dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 0 0 rgba(248,81,73,.35);
+    animation: pulse 2s infinite;
+  }
+  .dot.running { background: var(--green); box-shadow: 0 0 0 0 rgba(63,185,80,.35); }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(248,81,73,.30); }
+    70% { box-shadow: 0 0 0 8px rgba(248,81,73,0); }
+    100% { box-shadow: 0 0 0 0 rgba(248,81,73,0); }
+  }
+  .dot.running { animation-name: pulse-green; }
+  @keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(63,185,80,.30); }
+    70% { box-shadow: 0 0 0 8px rgba(63,185,80,0); }
+    100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); }
+  }
+  .kv {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px 14px;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .kv-item { background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; min-width: 0; }
+  .kv-key { color: var(--muted); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
+  .kv-val { margin-top: 3px; font-family: ui-monospace, "Cascadia Mono", "JetBrains Mono", Menlo, monospace; font-size: 13px; word-break: break-all; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  button {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: #232c35;
+    color: var(--text);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:active { filter: brightness(1.25); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #001428; }
+  button.success { background: var(--green); border-color: var(--green); color: #002010; }
+  button.danger { background: var(--red); border-color: var(--red); color: #2d0000; }
+  button.warn { background: var(--yellow); border-color: var(--yellow); color: #231a00; }
+  label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 5px; }
+  input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 11px 12px;
+    font-size: 15px;
+    font-family: ui-monospace, "Cascadia Mono", "JetBrains Mono", Menlo, monospace;
+  }
+  input:focus { outline: 1px solid var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
+  @media (max-width: 420px) { .form-row { grid-template-columns: 1fr; } }
+  .log {
+    background: #0c0f12;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: #b7c5d1;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 220px;
+    overflow-y: auto;
+    margin-top: 10px;
+  }
+  .msg {
+    margin-top: 10px;
+    font-size: 13px;
+    border-radius: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    display: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.ok { display: block; border-color: rgba(63,185,80,.5); color: var(--green); }
+  .msg.err { display: block; border-color: rgba(248,81,73,.5); color: var(--red); }
+  .msg.info { display: block; border-color: rgba(77,163,255,.5); color: var(--accent); }
+  .mono { font-family: ui-monospace, Menlo, monospace; }
+  .small { font-size: 11px; color: var(--muted); }
+  .hidden { display: none; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+</style>
+</head>
+<body>
+  <h1>Dropbear SSH 控制台</h1>
+  <div class="subtitle">Dropbear SSH, SCP and SFTP &middot; KernelSU WebUI</div>
+
+  <div id="no-ksu" class="card hidden">
+    <h2>无法使用 WebUI</h2>
+    <p class="small">当前页面没有 KernelSU WebView JavaScript API（<span class="mono">window.ksu</span>）。请在 KernelSU Manager 中打开本模块的 WebUI。</p>
+  </div>
+
+  <div class="card" id="status-card">
+    <h2>服务状态</h2>
+    <div class="status-line">
+      <span id="status-dot" class="dot"></span>
+      <span id="status-text">检测中…</span>
+    </div>
+    <div class="kv" id="status-kv"></div>
+    <div class="btn-row">
+      <button class="success" id="btn-start">启动服务</button>
+      <button class="danger" id="btn-stop">关闭服务</button>
+      <button id="btn-refresh">重新检测</button>
+      <button class="primary hidden" id="btn-restart">重启服务</button>
+    </div>
+    <div id="status-msg" class="msg"></div>
+    <div id="log-wrap" class="hidden">
+      <h2 style="margin-top:14px">最近日志</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <div class="card" id="config-card">
+    <h2>绑定的 IP:端口</h2>
+    <div class="form-row">
+      <div>
+        <label for="listen-address">监听地址（0.0.0.0 为全部接口，127.0.0.1 仅本机）</label>
+        <input id="listen-address" type="text" autocomplete="off" spellcheck="false" placeholder="0.0.0.0">
+      </div>
+      <div>
+        <label for="listen-port">端口（1-65535）</label>
+        <input id="listen-port" type="number" inputmode="numeric" min="1" max="65535" step="1" placeholder="2222">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="primary" id="btn-save-config">保存并应用</button>
+      <button id="btn-reload-config">读取当前配置</button>
+    </div>
+    <div id="config-msg" class="msg"></div>
+  </div>
+
+  <div class="card" id="key-card">
+    <h2>密钥管理</h2>
+    <p class="small">重新生成客户端 Ed25519 密钥对，并用新的公钥替换 <span class="mono">authorized_keys</span>。旧密钥会备份到 <span class="mono" id="backup-dir">/data/adb/dropbear-ksu/backups</span>。</p>
+    <div class="btn-row">
+      <button class="warn" id="btn-regen">重新生成客户端密钥对</button>
+      <button class="danger" id="btn-regen-host">重新生成服务器主机密钥</button>
+    </div>
+    <div id="key-msg" class="msg"></div>
+    <p class="small" style="margin-top:10px">重新生成客户端密钥对成功后，新私钥会导出到：</p>
+    <p class="mono small" id="export-path">/sdcard/Download/dropbear-ksu-client-key</p>
+    <p class="small" style="margin-top:8px">重新生成服务器主机密钥后，客户端重新连接时会出现主机指纹变更警告，这是正常现象。</p>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var MODDIR = '/data/adb/modules/dropbear-ksu';
+  var WEBUI_SH = MODDIR + '/webui.sh';
+  var $ = function (id) { return document.getElementById(id); };
+
+  var noKsu = $('no-ksu');
+  var statusDot = $('status-dot');
+  var statusText = $('status-text');
+  var statusKv = $('status-kv');
+  var statusMsg = $('status-msg');
+  var configMsg = $('config-msg');
+  var keyMsg = $('key-msg');
+  var logWrap = $('log-wrap');
+  var logBox = $('log');
+  var btnStart = $('btn-start');
+  var btnStop = $('btn-stop');
+  var btnRefresh = $('btn-refresh');
+  var btnRestart = $('btn-restart');
+  var btnSaveConfig = $('btn-save-config');
+  var btnReloadConfig = $('btn-reload-config');
+  var btnRegen = $('btn-regen');
+  var btnRegenHost = $('btn-regen-host');
+  var listenAddress = $('listen-address');
+  var listenPort = $('listen-port');
+
+  function hasKsu() {
+    return typeof window.ksu !== 'undefined' && typeof window.ksu.exec === 'function';
+  }
+
+  function show(id, visible) {
+    $(id).classList.toggle('hidden', !visible);
+  }
+
+  function setMsg(el, type, text) {
+    el.className = 'msg ' + (type || 'info');
+    el.textContent = text || '';
+    if (type) show(el.id, true);
+  }
+
+  function clearMsg(el) {
+    el.className = 'msg';
+    el.textContent = '';
+    show(el.id, false);
+  }
+
+  var serviceRunning = false;
+
+  function applyServiceButtons() {
+    btnStart.disabled = serviceRunning;
+    btnStop.disabled = !serviceRunning;
+    btnRestart.disabled = !serviceRunning;
+    show('btn-restart', serviceRunning);
+  }
+
+  function setBusy(busy) {
+    [btnStart, btnStop, btnRefresh, btnRestart, btnSaveConfig, btnReloadConfig, btnRegen, btnRegenHost].forEach(function (btn) {
+      btn.disabled = busy;
+    });
+    if (!busy) {
+      btnRefresh.disabled = false;
+      btnSaveConfig.disabled = false;
+      btnReloadConfig.disabled = false;
+      btnRegen.disabled = false;
+      btnRegenHost.disabled = false;
+      applyServiceButtons();
+    }
+  }
+
+  function exec(cmd) {
+    return new Promise(function (resolve, reject) {
+      if (!hasKsu()) {
+        reject(new Error('KernelSU WebUI API 不可用'));
+        return;
+      }
+
+      var cbName = '__dropbear_cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+      var settled = false;
+
+      function cleanup() {
+        try { delete window[cbName]; } catch (e) { /* ignore */ }
+      }
+
+      window[cbName] = function (errno, stdout, stderr) {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve({ errno: errno, stdout: stdout || '', stderr: stderr || '' });
+      };
+
+      try {
+        ksu.exec(cmd, '{}', cbName);
+      } catch (e) {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(e);
+      }
+
+      setTimeout(function () {
+        if (!settled) {
+          settled = true;
+          cleanup();
+          reject(new Error('命令执行超时'));
+        }
+      }, 30000);
+    });
+  }
+
+  function parseKeyValues(text) {
+    var out = { log: [] };
+    var inLog = false;
+    var lines = String(text || '').split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line === '---LOG---') {
+        inLog = true;
+        continue;
+      }
+      if (inLog) {
+        out.log.push(line);
+        continue;
+      }
+      var idx = line.indexOf('=');
+      if (idx > 0) {
+        out[line.slice(0, idx).trim()] = line.slice(idx + 1);
+      }
+    }
+    return out;
+  }
+
+  function renderStatus(data) {
+    var running = data.RUNNING === '1';
+    serviceRunning = running;
+    statusDot.className = 'dot' + (running ? ' running' : '');
+    statusText.textContent = running
+      ? ('运行中 · PID ' + (data.PID || '?'))
+      : '已停止';
+    statusText.style.color = running ? '#3fb950' : '#f85149';
+
+    var rows = [
+      ['监听地址', data.ADDRESS || '?'],
+      ['端口', data.PORT || '?'],
+      ['配置状态', data.CONFIG_OK === '1' ? '有效' : '无效/缺失'],
+      ['开机自启', data.AUTOSTART === '1' ? '开启' : '关闭'],
+      ['Keepalive', data.KEEPALIVE ? data.KEEPALIVE + ' 秒' : '?'],
+      ['Idle timeout', data.IDLE_TIMEOUT ? data.IDLE_TIMEOUT + ' 秒' : '?'],
+      ['端口转发', data.ALLOW_PORT_FORWARDING === '1' ? '允许' : '禁止'],
+      ['PID 文件', data.PIDFILE || '?']
+    ];
+
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+      html += '<div class="kv-item"><div class="kv-key">' + rows[i][0] + '</div><div class="kv-val">' + escapeHtml(rows[i][1]) + '</div></div>';
+    }
+    statusKv.innerHTML = html;
+
+    if (data.log.length > 0) {
+      show(logWrap.id, true);
+      logBox.textContent = data.log.join('\n');
+    } else {
+      show(logWrap.id, false);
+    }
+
+    if (data.CONFIG_OK === '1') {
+      listenAddress.value = data.ADDRESS || '';
+      listenPort.value = data.PORT || '';
+    }
+
+    applyServiceButtons();
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function parseResult(res) {
+    var data = parseKeyValues(res.stdout);
+    data.__errno = res.errno;
+    data.__stderr = res.stderr;
+    return data;
+  }
+
+  async function refreshStatus(showOk) {
+    clearMsg(statusMsg);
+    setBusy(true);
+    try {
+      var res = await exec('sh ' + WEBUI_SH + ' status');
+      var data = parseResult(res);
+      renderStatus(data);
+      if (showOk) setMsg(statusMsg, 'ok', '状态已刷新');
+      if (data.ERROR) setMsg(statusMsg, 'err', data.ERROR);
+    } catch (e) {
+      setMsg(statusMsg, 'err', '状态检测失败：' + e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadConfig() {
+    clearMsg(configMsg);
+    setBusy(true);
+    try {
+      var res = await exec('sh ' + WEBUI_SH + ' get-config');
+      var data = parseResult(res);
+      if (data.ERROR) {
+        setMsg(configMsg, 'err', data.ERROR);
+        return;
+      }
+      listenAddress.value = data.ADDRESS || '';
+      listenPort.value = data.PORT || '';
+      setMsg(configMsg, 'ok', '已读取当前配置');
+    } catch (e) {
+      setMsg(configMsg, 'err', '读取配置失败：' + e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveConfig() {
+    clearMsg(configMsg);
+    var address = listenAddress.value.trim();
+    var port = listenPort.value.trim();
+
+    if (!/^[A-Za-z0-9._:\[\]-]+$/.test(address)) {
+      setMsg(configMsg, 'err', '监听地址格式不正确。可填写 IPv4、主机名或带方括号的 IPv6 地址。');
+      return;
+    }
+    if (!/^\d+$/.test(port) || parseInt(port, 10) < 1 || parseInt(port, 10) > 65535) {
+      setMsg(configMsg, 'err', '端口必须是 1-65535 之间的数字。');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      var res = await exec("sh " + WEBUI_SH + " set-config '" + address.replace(/'/g, "'\\''") + "' " + port);
+      var data = parseResult(res);
+      if (data.ERROR) {
+        setMsg(configMsg, 'err', data.ERROR);
+        return;
+      }
+      var msg = '已保存：' + data.ADDRESS + ':' + data.PORT;
+      if (data.SERVICE_RESTARTED === '1') msg += '，服务已重启并生效';
+      else msg += '，服务未运行，下次启动时生效';
+      setMsg(configMsg, 'ok', msg);
+      await refreshStatus(false);
+    } catch (e) {
+      setMsg(configMsg, 'err', '保存配置失败：' + e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function startService() {
+    clearMsg(statusMsg);
+    setBusy(true);
+    setMsg(statusMsg, 'info', '正在启动服务…');
+    try {
+      var res = await exec('sh ' + WEBUI_SH + ' start');
+      await refreshStatus(false);
+      var data = parseResult(res);
+      if (data.ERROR) setMsg(statusMsg, 'err', data.ERROR);
+      else setMsg(statusMsg, 'ok', '服务启动命令已执行');
+    } catch (e) {
+      setMsg(statusMsg, 'err', '启动失败：' + e.message);
+      setBusy(false);
+    }
+  }
+
+  async function stopService() {
+    clearMsg(statusMsg);
+    setBusy(true);
+    setMsg(statusMsg, 'info', '正在关闭服务…');
+    try {
+      var res = await exec('sh ' + WEBUI_SH + ' stop');
+      await refreshStatus(false);
+      var data = parseResult(res);
+      if (data.ERROR) setMsg(statusMsg, 'err', data.ERROR);
+      else setMsg(statusMsg, 'ok', '服务关闭命令已执行');
+    } catch (e) {
+      setMsg(statusMsg, 'err', '关闭失败：' + e.message);
+      setBusy(false);
+    }
+  }
+
+  async function restartService() {
+    clearMsg(statusMsg);
+    setBusy(true);
+    setMsg(statusMsg, 'info', '正在重启服务…');
+    try {
+      var res = await exec('sh ' + WEBUI_SH + ' restart');
+      await refreshStatus(false);
+      var data = parseResult(res);
+      if (data.ERROR) setMsg(statusMsg, 'err', data.ERROR);
+      else setMsg(statusMsg, 'ok', '服务重启命令已执行');
+    } catch (e) {
+      setMsg(statusMsg, 'err', '重启失败：' + e.message);
+      setBusy(false);
+    }
+  }
+
+  async function regenKeys() {
+    clearMsg(keyMsg);
+    var confirmed = confirm('确定要重新生成客户端密钥对吗？\n\n旧的 authorized_keys 和已导出的私钥会被备份，服务会使用新的公钥。');
+    if (!confirmed) return;
+
+    setBusy(true);
+    setMsg(keyMsg, 'info', '正在生成新的 Ed25519 客户端密钥对，请稍候…');
+    try {
+      var res = await exec('sh ' + WEBUI_SH + ' regen-client-keys');
+      var data = parseResult(res);
+      if (data.ERROR) {
+        setMsg(keyMsg, 'err', data.ERROR);
+        return;
+      }
+      var msg = '新的客户端密钥对已生成并应用。\n私钥导出：' + data.EXPORT;
+      if (data.SERVICE_RESTARTED === '1') msg += '\n服务已重启，新公钥已生效。';
+      else msg += '\n服务未运行，下次启动时使用新公钥。';
+      if (data.BACKUP_DIR) msg += '\n旧密钥备份：' + data.BACKUP_DIR;
+      setMsg(keyMsg, 'ok', msg);
+      if (data.EXPORT) $('export-path').textContent = data.EXPORT;
+      await refreshStatus(false);
+    } catch (e) {
+      setMsg(keyMsg, 'err', '客户端密钥生成失败：' + e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function regenHostKey() {
+    clearMsg(keyMsg);
+    var confirmed = confirm('确定要重新生成服务器主机密钥吗？\n\n服务会重启并使用新的主机密钥，客户端连接时会出现指纹变更警告。');
+    if (!confirmed) return;
+
+    setBusy(true);
+    setMsg(keyMsg, 'info', '正在生成新的 Ed25519 服务器主机密钥，请稍候…');
+    try {
+      var res = await exec('sh ' + WEBUI_SH + ' regen-host-key');
+      var data = parseResult(res);
+      if (data.ERROR) {
+        setMsg(keyMsg, 'err', data.ERROR);
+        return;
+      }
+      var msg = '新的服务器主机密钥已生成并应用。';
+      if (data.SERVICE_RESTARTED === '1') msg += '\n服务已重启，新主机密钥已生效。';
+      else msg += '\n服务未运行，下次启动时使用新主机密钥。';
+      if (data.BACKUP_DIR) msg += '\n旧主机密钥备份：' + data.BACKUP_DIR;
+      setMsg(keyMsg, 'ok', msg);
+      await refreshStatus(false);
+    } catch (e) {
+      setMsg(keyMsg, 'err', '主机密钥生成失败：' + e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function detectModuleDir() {
+    try {
+      if (typeof ksu.moduleInfo === 'function') {
+        var info = JSON.parse(ksu.moduleInfo());
+        if (info && info.moduleDir) {
+          MODDIR = info.moduleDir;
+          WEBUI_SH = MODDIR + '/webui.sh';
+        }
+      }
+    } catch (e) { /* keep hardcoded fallback */ }
+  }
+
+  function init() {
+    if (!hasKsu()) {
+      show(noKsu.id, true);
+      setBusy(true);
+      statusText.textContent = 'API 不可用';
+      return;
+    }
+
+    show(noKsu.id, false);
+    detectModuleDir();
+    btnRefresh.addEventListener('click', function () { refreshStatus(true); });
+    btnStart.addEventListener('click', startService);
+    btnStop.addEventListener('click', stopService);
+    btnRestart.addEventListener('click', restartService);
+    btnSaveConfig.addEventListener('click', saveConfig);
+    btnReloadConfig.addEventListener('click', loadConfig);
+    btnRegen.addEventListener('click', regenKeys);
+    btnRegenHost.addEventListener('click', regenHostKey);
+    refreshStatus(false);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState !== 'loading') init();
+})();
+</script>
+</body>
+</html>
