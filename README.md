@@ -15,7 +15,7 @@ It provides **public-key authentication only**, with SSH (shell), SCP (secure co
   - Port forwarding is disabled by default.
 - **Full file-transfer suite:** SSH shell, SCP, and a static arm64 SFTP subsystem (`github.com/pkg/sftp`).
 - **Systemless:** installs under `/data/adb/modules/dropbear-ksu`; keeps writable data under `/data/adb/dropbear-ksu`.
-- **KernelSU WebUI:** live status, start/stop/restart, key regeneration, and listen address/port configuration.
+- **KernelSU WebUI:** live status, start/stop/restart, key regeneration, listen address/port configuration, and one-click log clearing.
 - **Magisk action button:** one-tap start/stop of the SSH service.
 
 ---
@@ -108,6 +108,7 @@ Notes:
   - Ed25519 **client key regeneration** (backs up the previous keys, installs the new public key into `authorized_keys`, and exports the new OpenSSH private key).
   - Ed25519 **server host-key regeneration** (backs up the previous host key and restarts Dropbear if running).
   - **Listen address / port configuration** (edits `/data/adb/dropbear-ksu/config`; restarts Dropbear if running).
+  - **One-click log clearing** (empties `dropbear.log` and the rotated `dropbear.log.1`).
 - **Action button:** toggles the SSH service on/off.
 
 ### Magisk app
@@ -169,6 +170,7 @@ It talks to `/data/adb/modules/dropbear-ksu/webui.sh` through the KernelSU `ksu.
 | `set-config <address> <port>` | Update `LISTEN_ADDRESS` and `PORT`, then restart if running. |
 | `regen-client-keys` | Generate and export a new Ed25519 client key pair. |
 | `regen-host-key` | Generate and install a new Ed25519 server host key. |
+| `clear-log` | Clear the daemon log (`dropbear.log` and rotated `dropbear.log.1`). |
 
 ---
 
@@ -259,7 +261,7 @@ Outputs:
 | Path | Description |
 | :--- | :--- |
 | `build/out/` | Compiled binaries (`dropbear`, `dropbearkey`, `dropbearconvert`, `scp`, `sftp-server`). |
-| `dropbear-ksu-v1.4.0-arm64.zip` | Flashable module package (also contains `legal/` license copies). |
+| `dropbear-ksu-v1.4.2-arm64.zip` | Flashable module package (also contains `legal/` license copies). |
 
 ### Running the Tests
 
@@ -288,6 +290,7 @@ test -f /tmp/dropbear-ksu-sftp-test-README.md
 
 ## Changelog
 
+- **v1.4.2**: Added a one-click “clear log” action to the WebUI; it empties both the current daemon log and the rotated log file.
 - **v1.4.0**: Added a KernelSU WebUI. The management console supports status detection, quick start/stop/restart, client/server key pair regeneration, and listen IP:port configuration.
 - **v1.3.0**: The module description now reflects the live running status (Running with PID and listen address, or Stopped) shown directly in KernelSU Manager / Magisk app.
 - **v1.2.0**: Added support for installation on both KernelSU and Magisk.

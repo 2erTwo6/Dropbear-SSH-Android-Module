@@ -258,6 +258,25 @@ do_regen_host_key() {
     fi
 }
 
+do_clear_log() {
+    mkdir -p "$DATADIR"
+    chmod 700 "$DATADIR"
+
+    if ! : > "$LOGFILE" 2>/dev/null; then
+        echo "ERROR=Failed to clear $LOGFILE"
+        return 1
+    fi
+    if [ -f "$LOGFILE.1" ]; then
+        : > "$LOGFILE.1" 2>/dev/null || {
+            echo "ERROR=Failed to clear $LOGFILE.1"
+            return 1
+        }
+    fi
+
+    echo "CLEARED=1"
+    echo "LOGFILE=$LOGFILE"
+}
+
 do_regen_client_keys() {
     TMP_CLIENT="$DATADIR/.webui-client-dropbear"
     TMP_OPENSSH="$DATADIR/.webui-client-openssh"
@@ -364,9 +383,12 @@ case "$CMD" in
     regen-host-key)
         do_regen_host_key
         ;;
+    clear-log)
+        do_clear_log
+        ;;
     *)
         echo "ERROR=Unknown command: $CMD"
-        echo "COMMANDS=status|start|stop|restart|get-config|set-config|regen-client-keys|regen-host-key"
+        echo "COMMANDS=status|start|stop|restart|get-config|set-config|regen-client-keys|regen-host-key|clear-log"
         exit 1
         ;;
 esac

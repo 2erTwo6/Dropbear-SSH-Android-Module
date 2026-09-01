@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")" && pwd)
 SOURCE=${DROPBEAR_SOURCE:-/var/home/liu/tmp1/dropbear}
 STAGE="$ROOT/build/package"
-OUTPUT="$ROOT/dropbear-ksu-v1.4.0-arm64.zip"
+OUTPUT="$ROOT/dropbear-ksu-v1.4.2-arm64.zip"
 
 rm -rf "$STAGE" "$OUTPUT"
 mkdir -p "$STAGE/bin"

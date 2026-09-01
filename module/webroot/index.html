@@ -124,6 +124,15 @@
     overflow-y: auto;
     margin-top: 10px;
   }
+  .log-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .log-head h2 { margin-bottom: 0; }
+  .log-head button { padding: 7px 12px; font-size: 12px; }
   .msg {
     margin-top: 10px;
     font-size: 13px;
@@ -167,7 +176,10 @@
     </div>
     <div id="status-msg" class="msg"></div>
     <div id="log-wrap" class="hidden">
-      <h2 style="margin-top:14px">最近日志</h2>
+      <div class="log-head">
+        <h2>最近日志</h2>
+        <button class="warn" id="btn-clear-log">清空日志</button>
+      </div>
       <div class="log" id="log"></div>
     </div>
   </div>
@@ -221,6 +233,7 @@
   var keyMsg = $('key-msg');
   var logWrap = $('log-wrap');
   var logBox = $('log');
+  var btnClearLog = $('btn-clear-log');
   var btnStart = $('btn-start');
   var btnStop = $('btn-stop');
   var btnRefresh = $('btn-refresh');
@@ -262,7 +275,7 @@
   }
 
   function setBusy(busy) {
-    [btnStart, btnStop, btnRefresh, btnRestart, btnSaveConfig, btnReloadConfig, btnRegen, btnRegenHost].forEach(function (btn) {
+    [btnStart, btnStop, btnRefresh, btnRestart, btnSaveConfig, btnReloadConfig, btnRegen, btnRegenHost, btnClearLog].forEach(function (btn) {
       btn.disabled = busy;
     });
     if (!busy) {
@@ -271,6 +284,7 @@
       btnReloadConfig.disabled = false;
       btnRegen.disabled = false;
       btnRegenHost.disabled = false;
+      btnClearLog.disabled = false;
       applyServiceButtons();
     }
   }
@@ -567,6 +581,26 @@
     }
   }
 
+  async function clearLog() {
+    clearMsg(statusMsg);
+    setBusy(true);
+    setMsg(statusMsg, 'info', '正在清空日志…');
+    try {
+      var res = await exec('sh ' + WEBUI_SH + ' clear-log');
+      var data = parseResult(res);
+      if (data.ERROR) {
+        setMsg(statusMsg, 'err', data.ERROR);
+        return;
+      }
+      await refreshStatus(false);
+      setMsg(statusMsg, 'ok', '日志已清空');
+    } catch (e) {
+      setMsg(statusMsg, 'err', '清空日志失败：' + e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function detectModuleDir() {
     try {
       if (typeof ksu.moduleInfo === 'function') {
@@ -597,6 +631,7 @@
     btnReloadConfig.addEventListener('click', loadConfig);
     btnRegen.addEventListener('click', regenKeys);
     btnRegenHost.addEventListener('click', regenHostKey);
+    btnClearLog.addEventListener('click', clearLog);
     refreshStatus(false);
   }
 
