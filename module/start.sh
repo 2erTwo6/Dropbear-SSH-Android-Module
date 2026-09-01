@@ -37,7 +37,7 @@ fi
 
 rotate_log
 log_message "starting dropbear on $LISTEN_ADDRESS:$PORT"
-"$DROPBEAR" "$@" >> "$LOGFILE" 2>&1 &
+"$DROPBEAR" "$@" < /dev/null >> "$LOGFILE" 2>&1 &
 PID=$!
 printf '%s\n' "$PID" > "$PIDFILE"
 sleep 1

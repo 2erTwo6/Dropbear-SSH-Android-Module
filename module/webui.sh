@@ -17,6 +17,32 @@ EXPORT_DIR=/sdcard/Download
 EXPORT_KEY="$EXPORT_DIR/dropbear-ksu-client-key"
 BACKUP_DIR="$DATADIR/backups"
 
+KSUD=/data/adb/ksud
+[ -x "$KSUD" ] || KSUD=/data/adb/ksu/bin/ksud
+MODULE_ID=${MODDIR##*/}
+
+# Start/stop/restart must run through "ksud module action" so KernelSU
+# detaches the service from the WebUI/manager process group and cgroup.
+# A daemon started directly from ksu.exec inherits the manager's cgroup:
+# it gets frozen when the manager goes to the background (connections time
+# out) and is killed when the manager is reaped.
+run_module_action() {
+    DROPBEAR_WEBUI_CMD=$1
+    export DROPBEAR_WEBUI_CMD
+    if [ -x "$KSUD" ]; then
+        "$KSUD" module action "$MODULE_ID"
+    else
+        case "$1" in
+            start) "$MODDIR/start.sh" ;;
+            stop) "$MODDIR/stop.sh" ;;
+            restart)
+                "$MODDIR/stop.sh" >/dev/null 2>&1
+                "$MODDIR/start.sh"
+                ;;
+        esac
+    fi
+}
+
 validate_address() {
     case "$1" in
         ''|*[!A-Za-z0-9._:\[\]-]*) return 1 ;;
@@ -77,16 +103,36 @@ do_status() {
 }
 
 do_start() {
-    "$MODDIR/start.sh"
+    run_module_action start
+    if read_pid; then
+        echo "STARTED=1"
+    else
+        echo "STARTED=0"
+        echo "ERROR=Failed to start service"
+        return 1
+    fi
 }
 
 do_stop() {
-    "$MODDIR/stop.sh"
+    run_module_action stop
+    if read_pid; then
+        echo "STOPPED=0"
+        echo "ERROR=Failed to stop service"
+        return 1
+    else
+        echo "STOPPED=1"
+    fi
 }
 
 do_restart() {
-    "$MODDIR/stop.sh" >/dev/null 2>&1
-    "$MODDIR/start.sh"
+    run_module_action restart
+    if read_pid; then
+        echo "RESTARTED=1"
+    else
+        echo "RESTARTED=0"
+        echo "ERROR=Failed to restart service"
+        return 1
+    fi
 }
 
 do_get_config() {
@@ -145,8 +191,8 @@ do_set_config() {
     echo "PORT=$PORT"
 
     if read_pid; then
-        "$MODDIR/stop.sh" >/dev/null 2>&1
-        if "$MODDIR/start.sh" >/dev/null 2>&1; then
+        run_module_action restart >/dev/null 2>&1
+        if read_pid; then
             echo "SERVICE_RESTARTED=1"
         else
             echo "SERVICE_RESTARTED=0"
@@ -198,8 +244,8 @@ do_regen_host_key() {
     echo "BACKUP_DIR=$BACKUP_DIR"
 
     if read_pid; then
-        "$MODDIR/stop.sh" >/dev/null 2>&1
-        if "$MODDIR/start.sh" >/dev/null 2>&1; then
+        run_module_action restart >/dev/null 2>&1
+        if read_pid; then
             echo "SERVICE_RESTARTED=1"
         else
             echo "SERVICE_RESTARTED=0"
@@ -279,8 +325,8 @@ do_regen_client_keys() {
     echo "BACKUP_DIR=$BACKUP_DIR"
 
     if read_pid; then
-        "$MODDIR/stop.sh" >/dev/null 2>&1
-        if "$MODDIR/start.sh" >/dev/null 2>&1; then
+        run_module_action restart >/dev/null 2>&1
+        if read_pid; then
             echo "SERVICE_RESTARTED=1"
         else
             echo "SERVICE_RESTARTED=0"
