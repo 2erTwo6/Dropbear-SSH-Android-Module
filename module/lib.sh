@@ -73,13 +73,21 @@ read_pid() {
 # are not part of the listener's process group and are not reachable through
 # the PID file.  Scan /proc for this module's binary to find the listener and
 # every live session, including sessions orphaned by an earlier crash.
+#
+# Read comm first: on Android a readlink of every /proc/<pid>/exe spawns one
+# toybox process per PID, and with ~1000 processes a single scan took ~9s and
+# starved the daemon during shutdown.  Reading comm with the shell builtin is
+# cheap; readlink is then only needed for the few dropbear candidates.
 scan_server_pids() {
-    local proc pid exe
+    local proc pid comm exe
     SERVER_PIDS=
     SERVER_PID_COUNT=0
     for proc in /proc/[0-9]*; do
         [ -d "$proc" ] || continue
         pid=${proc##*/}
+        comm=
+        read -r comm < "$proc/comm" 2>/dev/null || continue
+        [ "$comm" = dropbear ] || continue
         exe=$(readlink "$proc/exe" 2>/dev/null) || continue
         case "$exe" in
             "$DROPBEAR"|"$DROPBEAR (deleted)"|"$DROPBEAR_REAL"|"$DROPBEAR_REAL (deleted)")
@@ -125,10 +133,12 @@ stop_server() {
     log_message "stopping dropbear ($SERVER_PID_COUNT process(es)): $SERVER_PIDS"
 
     # Re-scan and signal on every round so a connection accepted just before
-    # the listener exits cannot survive the shutdown.
+    # the listener exits cannot survive the shutdown.  Dropbear should exit
+    # promptly; three seconds is enough grace before forcing it, otherwise
+    # the WebUI command times out and the stop appears to do nothing.
     while scan_server_pids; do
         kill $SERVER_PIDS 2>/dev/null
-        if [ "$waited" -ge 10 ]; then
+        if [ "$waited" -ge 3 ]; then
             break
         fi
         sleep 1
