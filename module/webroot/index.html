@@ -57,6 +57,7 @@
     animation: pulse 2s infinite;
   }
   .dot.running { background: var(--green); box-shadow: 0 0 0 0 rgba(63,185,80,.35); }
+  .dot.warn { background: var(--yellow); box-shadow: 0 0 0 0 rgba(210,153,34,.35); }
   @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(248,81,73,.30); }
     70% { box-shadow: 0 0 0 8px rgba(248,81,73,0); }
@@ -67,6 +68,12 @@
     0% { box-shadow: 0 0 0 0 rgba(63,185,80,.30); }
     70% { box-shadow: 0 0 0 8px rgba(63,185,80,0); }
     100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); }
+  }
+  .dot.warn { animation-name: pulse-warn; }
+  @keyframes pulse-warn {
+    0% { box-shadow: 0 0 0 0 rgba(210,153,34,.30); }
+    70% { box-shadow: 0 0 0 8px rgba(210,153,34,0); }
+    100% { box-shadow: 0 0 0 0 rgba(210,153,34,0); }
   }
   .kv {
     display: grid;
@@ -266,10 +273,11 @@
   }
 
   var serviceRunning = false;
+  var sessionCount = 0;
 
   function applyServiceButtons() {
     btnStart.disabled = serviceRunning;
-    btnStop.disabled = !serviceRunning;
+    btnStop.disabled = !(serviceRunning || sessionCount > 0);
     btnRestart.disabled = !serviceRunning;
     show('btn-restart', serviceRunning);
   }
@@ -353,16 +361,28 @@
 
   function renderStatus(data) {
     var running = data.RUNNING === '1';
+    var sessions = parseInt(data.SESSIONS || '0', 10);
+    if (!isFinite(sessions) || sessions < 0) sessions = 0;
     serviceRunning = running;
-    statusDot.className = 'dot' + (running ? ' running' : '');
-    statusText.textContent = running
-      ? ('运行中 · PID ' + (data.PID || '?'))
-      : '已停止';
-    statusText.style.color = running ? '#3fb950' : '#f85149';
+    sessionCount = sessions;
+    statusDot.className = 'dot' + (running ? ' running' : (sessions > 0 ? ' warn' : ''));
+    if (running) {
+      statusText.textContent = '运行中 · PID ' + (data.PID || '?');
+    } else if (sessions > 0) {
+      statusText.textContent = '已停止，但仍有 ' + sessions + ' 个 SSH 会话在运行';
+    } else {
+      statusText.textContent = '已停止';
+    }
+    statusText.style.color = running ? '#3fb950' : (sessions > 0 ? '#d29922' : '#f85149');
+
+    var sessionText = sessions > 0
+      ? sessions + ' 个' + (running ? '（已建立）' : '（残留，仍可操作）')
+      : '0';
 
     var rows = [
       ['监听地址', data.ADDRESS || '?'],
       ['端口', data.PORT || '?'],
+      ['SSH 会话', sessionText],
       ['配置状态', data.CONFIG_OK === '1' ? '有效' : '无效/缺失'],
       ['开机自启', data.AUTOSTART === '1' ? '开启' : '关闭'],
       ['Keepalive', data.KEEPALIVE ? data.KEEPALIVE + ' 秒' : '?'],
@@ -389,6 +409,7 @@
       listenPort.value = data.PORT || '';
     }
 
+    btnStop.textContent = (!running && sessions > 0) ? '终止残留会话' : '关闭服务';
     applyServiceButtons();
   }
 
@@ -502,8 +523,13 @@
       var res = await exec('sh ' + WEBUI_SH + ' stop');
       await refreshStatus(false);
       var data = parseResult(res);
-      if (data.ERROR) setMsg(statusMsg, 'err', data.ERROR);
-      else setMsg(statusMsg, 'ok', '服务关闭命令已执行');
+      if (data.ERROR) {
+        setMsg(statusMsg, 'err', data.ERROR);
+      } else if (data.SESSIONS && data.SESSIONS !== '0') {
+        setMsg(statusMsg, 'err', '服务已停止，但仍有 ' + data.SESSIONS + ' 个 SSH 会话在运行');
+      } else {
+        setMsg(statusMsg, 'ok', '服务已关闭，所有 SSH 会话已终止');
+      }
     } catch (e) {
       setMsg(statusMsg, 'err', '关闭失败：' + e.message);
       setBusy(false);

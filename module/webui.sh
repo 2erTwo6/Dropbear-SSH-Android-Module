@@ -36,7 +36,9 @@ run_module_action() {
             start) "$MODDIR/start.sh" ;;
             stop) "$MODDIR/stop.sh" ;;
             restart)
-                "$MODDIR/stop.sh" >/dev/null 2>&1
+                if ! "$MODDIR/stop.sh" >/dev/null 2>&1; then
+                    return 1
+                fi
                 "$MODDIR/start.sh"
                 ;;
         esac
@@ -65,6 +67,11 @@ print_status() {
         echo "RUNNING=0"
         echo "PID="
     fi
+
+    # The PID file only tracks the listener.  Report established sessions so
+    # the WebUI never claims "stopped" while a root session is still alive.
+    count_sessions
+    echo "SESSIONS=$SESSION_COUNT"
 
     if load_config 2>/dev/null; then
         echo "CONFIG_OK=1"
@@ -106,6 +113,8 @@ do_start() {
     run_module_action start
     if read_pid; then
         echo "STARTED=1"
+        count_sessions
+        echo "SESSIONS=$SESSION_COUNT"
     else
         echo "STARTED=0"
         echo "ERROR=Failed to start service"
@@ -115,19 +124,28 @@ do_start() {
 
 do_stop() {
     run_module_action stop
-    if read_pid; then
+    # A live root session must not be reported as "stopped" just because the
+    # listener's PID file is gone.  Verify every dropbear process is gone.
+    if scan_server_pids; then
         echo "STOPPED=0"
-        echo "ERROR=Failed to stop service"
+        echo "SESSIONS=$SERVER_PID_COUNT"
+        echo "ERROR=Failed to stop service; $SERVER_PID_COUNT dropbear process(es) still running"
         return 1
-    else
-        echo "STOPPED=1"
     fi
+    echo "STOPPED=1"
+    echo "SESSIONS=0"
 }
 
 do_restart() {
-    run_module_action restart
+    if ! run_module_action restart; then
+        echo "RESTARTED=0"
+        echo "ERROR=Failed to restart service"
+        return 1
+    fi
     if read_pid; then
         echo "RESTARTED=1"
+        count_sessions
+        echo "SESSIONS=$SESSION_COUNT"
     else
         echo "RESTARTED=0"
         echo "ERROR=Failed to restart service"
@@ -191,8 +209,7 @@ do_set_config() {
     echo "PORT=$PORT"
 
     if read_pid; then
-        run_module_action restart >/dev/null 2>&1
-        if read_pid; then
+        if run_module_action restart >/dev/null 2>&1 && read_pid; then
             echo "SERVICE_RESTARTED=1"
         else
             echo "SERVICE_RESTARTED=0"
@@ -244,8 +261,7 @@ do_regen_host_key() {
     echo "BACKUP_DIR=$BACKUP_DIR"
 
     if read_pid; then
-        run_module_action restart >/dev/null 2>&1
-        if read_pid; then
+        if run_module_action restart >/dev/null 2>&1 && read_pid; then
             echo "SERVICE_RESTARTED=1"
         else
             echo "SERVICE_RESTARTED=0"
@@ -344,8 +360,7 @@ do_regen_client_keys() {
     echo "BACKUP_DIR=$BACKUP_DIR"
 
     if read_pid; then
-        run_module_action restart >/dev/null 2>&1
-        if read_pid; then
+        if run_module_action restart >/dev/null 2>&1 && read_pid; then
             echo "SERVICE_RESTARTED=1"
         else
             echo "SERVICE_RESTARTED=0"

@@ -162,10 +162,10 @@ It talks to `/data/adb/modules/dropbear-ksu/webui.sh` through the KernelSU `ksu.
 
 | Command | Description |
 | :--- | :--- |
-| `status` | Print status, configuration, and the latest daemon log. |
+| `status` | Print status (including the number of established sessions), configuration, and the latest daemon log. |
 | `start` | Start Dropbear. |
-| `stop` | Stop Dropbear. |
-| `restart` | Restart Dropbear. |
+| `stop` | Stop the listener **and terminate all established SSH sessions**. |
+| `restart` | Stop everything and start a fresh listener. |
 | `get-config` | Print the current validated configuration. |
 | `set-config <address> <port>` | Update `LISTEN_ADDRESS` and `PORT`, then restart if running. |
 | `regen-client-keys` | Generate and export a new Ed25519 client key pair. |
@@ -213,6 +213,7 @@ It talks to `/data/adb/modules/dropbear-ksu/webui.sh` through the KernelSU `ksu.
 - `ALLOW_PORT_FORWARDING` is disabled by default; only enable it if you need TCP forwarding.
 - Listening on `0.0.0.0` exposes the SSH service to the current network. Use a firewall, trust the network, or prefer `127.0.0.1` when remote access is not required.
 - The daemon runs as root and SSH sessions have root privileges. Protect your client private key accordingly.
+- Stopping the service terminates the listener and every established SSH session. Processes deliberately detached from a session (for example with `nohup` or `setsid`) are no longer part of that session and are not tracked by the service.
 
 ---
 
@@ -265,13 +266,16 @@ Outputs:
 
 ### Running the Tests
 
-The repository includes shell-syntax checks and an SFTP protocol smoke test (also run by CI):
+The repository includes shell-syntax checks, a stop/session regression test, and an SFTP protocol smoke test (also run by CI):
 
 ```bash
 # Shell syntax check
 for script in build.sh package.sh module/*.sh tests/*.sh; do
     sh -n "$script" && echo "syntax ok: $script"
 done
+
+# Verify that stopping the service also terminates established sessions
+bash tests/stop-sessions.sh
 
 # Build a host sftp-server test fixture, then run a batch SFTP smoke test
 mkdir -p build/sftp-test-root
@@ -290,6 +294,7 @@ test -f /tmp/dropbear-ksu-sftp-test-README.md
 
 ## Changelog
 
+- **Unreleased**: Stopping or restarting the service now terminates established SSH sessions as well as the listener. The WebUI and module description report any session that is still alive instead of claiming “stopped”.
 - **v1.4.2**: Added a one-click “clear log” action to the WebUI; it empties both the current daemon log and the rotated log file.
 - **v1.4.0**: Added a KernelSU WebUI. The management console supports status detection, quick start/stop/restart, client/server key pair regeneration, and listen IP:port configuration.
 - **v1.3.0**: The module description now reflects the live running status (Running with PID and listen address, or Stopped) shown directly in KernelSU Manager / Magisk app.

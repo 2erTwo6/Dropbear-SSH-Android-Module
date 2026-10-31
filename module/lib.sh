@@ -10,6 +10,14 @@ HOSTKEY="$DATADIR/dropbear_ed25519_host_key"
 DROPBEAR="$MODDIR/bin/dropbear"
 DROPBEARKEY="$MODDIR/bin/dropbearkey"
 
+# /proc/<pid>/exe reports the resolved path.  Keep both forms so a MODDIR
+# reached through a symlink still matches the running daemon.
+DROPBEAR_REAL=$(readlink -f "$DROPBEAR" 2>/dev/null) || DROPBEAR_REAL=$DROPBEAR
+case "$DROPBEAR_REAL" in
+    /*) ;;
+    *) DROPBEAR_REAL=$DROPBEAR ;;
+esac
+
 MODULE_PROP="$MODDIR/module.prop"
 BASE_DESCRIPTION="Root Dropbear SSH server for arm64 Android, key authentication only. Supports KernelSU and Magisk."
 
@@ -31,6 +39,10 @@ update_module_description() {
         status="Running (PID $pid, $addr:$port)"
     else
         status="Stopped"
+        count_sessions
+        if [ "$SESSION_COUNT" -gt 0 ]; then
+            status="Stopped ($SESSION_COUNT SSH session(s) still active)"
+        fi
         if [ -r "$LOGFILE" ] && ! load_config 2>/dev/null; then
             status="Stopped (invalid config)"
         fi
@@ -52,7 +64,93 @@ read_pid() {
     kill -0 "$PID" 2>/dev/null || return 1
 
     EXE=$(readlink "/proc/$PID/exe" 2>/dev/null)
-    [ "$EXE" = "$DROPBEAR" ] || [ "$EXE" = "$DROPBEAR (deleted)" ]
+    [ "$EXE" = "$DROPBEAR" ] || [ "$EXE" = "$DROPBEAR (deleted)" ] \
+        || [ "$EXE" = "$DROPBEAR_REAL" ] || [ "$EXE" = "$DROPBEAR_REAL (deleted)" ]
+}
+
+# Dropbear forks one child per accepted connection and that child calls
+# setsid().  Established sessions are therefore independent processes: they
+# are not part of the listener's process group and are not reachable through
+# the PID file.  Scan /proc for this module's binary to find the listener and
+# every live session, including sessions orphaned by an earlier crash.
+scan_server_pids() {
+    local proc pid exe
+    SERVER_PIDS=
+    SERVER_PID_COUNT=0
+    for proc in /proc/[0-9]*; do
+        [ -d "$proc" ] || continue
+        pid=${proc##*/}
+        exe=$(readlink "$proc/exe" 2>/dev/null) || continue
+        case "$exe" in
+            "$DROPBEAR"|"$DROPBEAR (deleted)"|"$DROPBEAR_REAL"|"$DROPBEAR_REAL (deleted)")
+                SERVER_PIDS="$SERVER_PIDS $pid"
+                SERVER_PID_COUNT=$((SERVER_PID_COUNT + 1))
+                ;;
+        esac
+    done
+    SERVER_PIDS=${SERVER_PIDS# }
+    [ "$SERVER_PID_COUNT" -gt 0 ]
+}
+
+# Established sessions are all dropbear processes except the listener
+# recorded in the PID file.
+count_sessions() {
+    SESSION_COUNT=0
+    if scan_server_pids; then
+        SESSION_COUNT=$SERVER_PID_COUNT
+        if read_pid 2>/dev/null; then
+            case " $SERVER_PIDS " in
+                *" $PID "*) SESSION_COUNT=$((SESSION_COUNT - 1)) ;;
+            esac
+        fi
+    fi
+    return 0
+}
+
+# Stop the listener and every established session.  A plain "kill $PID" only
+# closes the listening socket: sessions keep running as root and the WebUI
+# reports "stopped" while they are still usable.  Returns non-zero if any
+# dropbear process survives.
+stop_server() {
+    local waited
+    waited=0
+
+    if ! scan_server_pids; then
+        rm -f "$PIDFILE"
+        log_message "dropbear is not running"
+        update_module_description
+        return 0
+    fi
+
+    log_message "stopping dropbear ($SERVER_PID_COUNT process(es)): $SERVER_PIDS"
+
+    # Re-scan and signal on every round so a connection accepted just before
+    # the listener exits cannot survive the shutdown.
+    while scan_server_pids; do
+        kill $SERVER_PIDS 2>/dev/null
+        if [ "$waited" -ge 10 ]; then
+            break
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+
+    if scan_server_pids; then
+        log_message "force killing dropbear: $SERVER_PIDS"
+        kill -9 $SERVER_PIDS 2>/dev/null
+        sleep 1
+    fi
+
+    if scan_server_pids; then
+        log_message "failed to stop dropbear; still running: $SERVER_PIDS"
+        update_module_description
+        return 1
+    fi
+
+    rm -f "$PIDFILE"
+    log_message "dropbear stopped"
+    update_module_description
+    return 0
 }
 
 rotate_log() {
