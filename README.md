@@ -262,7 +262,7 @@ Outputs:
 | Path | Description |
 | :--- | :--- |
 | `build/out/` | Compiled binaries (`dropbear`, `dropbearkey`, `dropbearconvert`, `scp`, `sftp-server`). |
-| `dropbear-ksu-v1.4.2-arm64.zip` | Flashable module package (also contains `legal/` license copies). |
+| `dropbear-ksu-v1.4.3-arm64.zip` | Flashable module package (also contains `legal/` license copies). |
 
 ### Running the Tests
 
@@ -294,7 +294,7 @@ test -f /tmp/dropbear-ksu-sftp-test-README.md
 
 ## Changelog
 
-- **Unreleased**: Stopping or restarting the service now terminates established SSH sessions as well as the listener. The WebUI and module description report any session that is still alive instead of claiming “stopped”.
+- **v1.4.3**: Stopping or restarting the service now terminates established SSH sessions as well as the listener. The WebUI and module description report any session that is still alive instead of claiming “stopped”.
 - **v1.4.2**: Added a one-click “clear log” action to the WebUI; it empties both the current daemon log and the rotated log file.
 - **v1.4.0**: Added a KernelSU WebUI. The management console supports status detection, quick start/stop/restart, client/server key pair regeneration, and listen IP:port configuration.
 - **v1.3.0**: The module description now reflects the live running status (Running with PID and listen address, or Stopped) shown directly in KernelSU Manager / Magisk app.
