@@ -15,6 +15,7 @@ cleanup() {
     for pid in $PIDS; do
         kill -9 "$pid" 2>/dev/null || true
     done
+    exec 9>&- 2>/dev/null || true
     rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -22,10 +23,16 @@ trap cleanup EXIT
 # shellcheck disable=SC1091
 . "$ROOT/module/lib.sh"
 
-# A copied sleep binary gives us processes whose /proc/<pid>/exe matches the
-# configured dropbear path, without needing the real arm64 daemon.
-cp /bin/sleep "$TMP/dropbear"
+# The fake daemon must be a real ELF binary: a shell script's /proc/<pid>/exe
+# points at the interpreter, not the script.  Copy bash and keep it blocked
+# on a FIFO with a read builtin, so the process has no child and its exe path
+# is exactly the configured dropbear path.  (Renaming coreutils multicall
+# binaries does not work: argv[0] "dropbear" is rejected by coreutils.)
+FAKE_KEEPALIVE="$TMP/keepalive"
+cp "${BASH:-/bin/bash}" "$TMP/dropbear"
 chmod 0755 "$TMP/dropbear"
+mkfifo "$FAKE_KEEPALIVE"
+exec 9<>"$FAKE_KEEPALIVE"
 DROPBEAR=$(readlink -f "$TMP/dropbear")
 DROPBEAR_REAL=$DROPBEAR
 
@@ -43,7 +50,7 @@ fail() {
 }
 
 start_fake_dropbear() {
-    "$DROPBEAR" 60 &
+    "$DROPBEAR" -c 'read -r _ < "$1"' _ "$FAKE_KEEPALIVE" &
     FAKE_DROPBEAR_PID=$!
     PIDS="$PIDS $FAKE_DROPBEAR_PID"
 }
@@ -93,8 +100,8 @@ stop_and_reap "$orphan1" "$orphan2"
 start_fake_dropbear
 listener=$FAKE_DROPBEAR_PID
 printf '%s\n' "$listener" > "$PIDFILE"
-cp /bin/sleep "$TMP/bystander"
-"$TMP/bystander" 60 &
+cp "$DROPBEAR" "$TMP/bystander"
+"$TMP/bystander" -c 'read -r _ < "$1"' _ "$FAKE_KEEPALIVE" &
 bystander=$!
 PIDS="$PIDS $bystander"
 
