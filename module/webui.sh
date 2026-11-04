@@ -28,9 +28,9 @@ done
 APD=/data/adb/apd
 [ -x "$APD" ] || APD=
 
-# APatch/FolkPatch installs a Magisk-compatible environment and can leave
-# KernelSU files behind, so prefer apd whenever APatch's package config is
-# present, even if a stale ksud also exists.
+# APatch/FolkPatch sets compatibility variables for legacy module installers
+# and can leave KernelSU files behind, so prefer apd whenever APatch's package
+# config is present, even if a stale ksud also exists.
 APATCH_DATA=
 [ -f /data/adb/ap/package_config ] && APATCH_DATA=1
 

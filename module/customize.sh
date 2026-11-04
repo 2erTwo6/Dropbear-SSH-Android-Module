@@ -23,10 +23,8 @@ if [ "$APATCH" = true ]; then
     ui_print "[*] Running under APatch/FolkPatch"
 elif [ "$KSU" = true ]; then
     ui_print "[*] Running under KernelSU"
-elif [ -n "$MAGISK_VER_CODE" ]; then
-    ui_print "[*] Running under Magisk $MAGISK_VER"
 else
-    abort "KernelSU, APatch/FolkPatch or Magisk is required"
+    abort "KernelSU or APatch/FolkPatch is required"
 fi
 [ "$ARCH" = arm64 ] || abort "Unsupported architecture: $ARCH (arm64 required)"
 [ "$API" -ge 21 ] || abort "Android API 21 or newer is required"
@@ -123,11 +121,9 @@ ui_print "Persistent data: $DATADIR"
 if [ "$APATCH" = true ]; then
     ui_print "Tap the module card or WebUI icon in APatch/FolkPatch Manager to open WebUI."
     ui_print "The action button still toggles SSH start/stop."
-elif [ "$KSU" = true ]; then
+else
     ui_print "Tap the module card or WebUI icon in KernelSU Manager to open WebUI."
     ui_print "The action button still toggles SSH start/stop."
-else
-    ui_print "Use the action button in Magisk Manager to start/stop SSH."
 fi
 ui_print "SFTP is enabled; modern scp works without -O."
 ui_print ""

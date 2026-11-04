@@ -1,6 +1,6 @@
 # Dropbear SSH Server for Android
 
-A lightweight, systemless [KernelSU](https://github.com/tiann/KernelSU) / [Magisk](https://github.com/topjohnwu/Magisk) module that runs a [Dropbear](https://github.com/mkj/dropbear) SSH server as root (UID 0) on arm64 Android devices.
+A lightweight, systemless [KernelSU](https://github.com/tiann/KernelSU) / [APatch](https://github.com/bmax121/APatch) / [FolkPatch](https://github.com/LyraVoid/FolkPatch) module that runs a [Dropbear](https://github.com/mkj/dropbear) SSH server as root (UID 0) on arm64 Android devices.
 
 It provides **public-key authentication only**, with SSH (shell), SCP (secure copy), and SFTP (file transfer) support, and does **not** mount or modify the `/system` partition.
 
@@ -26,7 +26,7 @@ It provides **public-key authentication only**, with SSH (shell), SCP (secure co
 | :--- | :--- |
 | Android version | Android 5.0+ (API 21+) |
 | Architecture | arm64 only |
-| Root solution | KernelSU, APatch/FolkPatch, or Magisk |
+| Root solution | KernelSU or APatch/FolkPatch |
 | Dropbear source | upstream `mkj/dropbear`, revision `e470317914be7f78791baed62b17578b1c934742` |
 | Android NDK (build only) | r29 (API 23 toolchain) |
 | Go (build only) | 1.25+ |
@@ -38,7 +38,7 @@ It provides **public-key authentication only**, with SSH (shell), SCP (secure co
 ### 1. Flash the module
 
 1. Download the latest `dropbear-ksu-v*-arm64.zip` from the Releases page.
-2. Flash it with **KernelSU Manager**, **APatch/FolkPatch Manager**, or the **Magisk app**.
+2. Flash it with **KernelSU Manager** or **APatch/FolkPatch Manager**.
 3. Reboot the device.
 
 ### 2. Choose the listening mode (first install only)
@@ -132,12 +132,8 @@ Notes:
   for, stores, or passes the key. On older APatch builds that still require
   SuperKey authentication, use the manager's Action button if the WebUI
   reports a start failure.
-- The APatch installer exports Magisk-compatible variables, so the module
-  reports the manager it actually detected during installation.
-
-### Magisk app
-
-- Tap the **Action** button next to the module to toggle the SSH service on/off.
+- The APatch installer sets compatibility variables for legacy module
+  installers, so the module detects APatch explicitly before falling back.
 
 ### From an `adb shell` (with root)
 
@@ -321,12 +317,12 @@ test -f /tmp/dropbear-ksu-sftp-test-README.md
 
 ## Changelog
 
-- **v1.5.0**: Added APatch/FolkPatch support. WebUI start/stop/restart now routes through `/data/adb/apd module action` when APatch/FolkPatch is detected, alongside the existing `ksud module action` path. Added manager detection tests and clarified the installer output for APatch/FolkPatch.
+- **v1.5.0**: Added APatch/FolkPatch support. WebUI start/stop/restart now routes through `/data/adb/apd module action` when APatch/FolkPatch is detected, alongside the existing `ksud module action` path. Added manager detection tests, clarified the installer output for APatch/FolkPatch, and removed the unsupported Magisk claim.
 - **v1.4.3**: Stopping or restarting the service now terminates established SSH sessions as well as the listener. The WebUI and module description report any session that is still alive instead of claiming “stopped”.
 - **v1.4.2**: Added a one-click “clear log” action to the WebUI; it empties both the current daemon log and the rotated log file.
 - **v1.4.0**: Added a KernelSU WebUI. The management console supports status detection, quick start/stop/restart, client/server key pair regeneration, and listen IP:port configuration.
-- **v1.3.0**: The module description now reflects the live running status (Running with PID and listen address, or Stopped) shown directly in KernelSU Manager / Magisk app.
-- **v1.2.0**: Added support for installation on both KernelSU and Magisk.
+- **v1.3.0**: The module description now reflects the live running status (Running with PID and listen address, or Stopped) shown directly in the manager.
+- **v1.2.0**: Added installation support for KernelSU.
 - **v1.1.1**: Set the default initial directory of SFTP to `/sdcard`.
 - **v1.1.0**: Integrated a static arm64 SFTP subsystem server based on `github.com/pkg/sftp`.
 - **v1.0.1**: Removed the `-E` flag for Dropbear builds compiled without syslog support.

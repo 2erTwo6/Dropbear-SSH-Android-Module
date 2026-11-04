@@ -19,7 +19,7 @@ case "$DROPBEAR_REAL" in
 esac
 
 MODULE_PROP="$MODDIR/module.prop"
-BASE_DESCRIPTION="Root Dropbear SSH server for arm64 Android, key authentication only. Supports KernelSU, APatch/FolkPatch and Magisk."
+BASE_DESCRIPTION="Root Dropbear SSH server for arm64 Android, key authentication only. Supports KernelSU and APatch/FolkPatch."
 
 # Choose the root-manager CLI used to run action.sh.  Both KernelSU's ksud and
 # APatch/FolkPatch's apd execute the action script from a detached cgroup.  A

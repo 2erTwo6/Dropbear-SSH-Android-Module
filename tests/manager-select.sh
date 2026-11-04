@@ -3,8 +3,8 @@
 # Regression test for root-manager selection.  The WebUI must route module
 # actions through the manager's own CLI so the action script is detached from
 # the manager app cgroup.  APatch/FolkPatch uses /data/adb/apd, KernelSU uses
-# ksud, and an APatch install also exports a Magisk-compatible environment, so
-# the APatch data directory has to win over a leftover ksud.
+# ksud, and an APatch install also sets compatibility variables for legacy
+# installers, so the APatch package config has to win over a leftover ksud.
 #
 set -euo pipefail
 
