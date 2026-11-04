@@ -57,6 +57,9 @@ jobs:
       - name: Run stop/session regression test
         run: bash tests/stop-sessions.sh
 
+      - name: Run root-manager selection test
+        run: bash tests/manager-select.sh
+
       - name: Build host sftp-server and test fixture
         run: |
           mkdir -p build/sftp-test-root

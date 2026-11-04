@@ -15,8 +15,8 @@ It provides **public-key authentication only**, with SSH (shell), SCP (secure co
   - Port forwarding is disabled by default.
 - **Full file-transfer suite:** SSH shell, SCP, and a static arm64 SFTP subsystem (`github.com/pkg/sftp`).
 - **Systemless:** installs under `/data/adb/modules/dropbear-ksu`; keeps writable data under `/data/adb/dropbear-ksu`.
-- **KernelSU WebUI:** live status, start/stop/restart, key regeneration, listen address/port configuration, and one-click log clearing.
-- **Magisk action button:** one-tap start/stop of the SSH service.
+- **KernelSU / APatch / FolkPatch WebUI:** live status, start/stop/restart, key regeneration, listen address/port configuration, and one-click log clearing.
+- **Manager action button:** one-tap start/stop of the SSH service.
 
 ---
 
@@ -26,7 +26,7 @@ It provides **public-key authentication only**, with SSH (shell), SCP (secure co
 | :--- | :--- |
 | Android version | Android 5.0+ (API 21+) |
 | Architecture | arm64 only |
-| Root solution | KernelSU or Magisk |
+| Root solution | KernelSU, APatch/FolkPatch, or Magisk |
 | Dropbear source | upstream `mkj/dropbear`, revision `e470317914be7f78791baed62b17578b1c934742` |
 | Android NDK (build only) | r29 (API 23 toolchain) |
 | Go (build only) | 1.25+ |
@@ -38,7 +38,7 @@ It provides **public-key authentication only**, with SSH (shell), SCP (secure co
 ### 1. Flash the module
 
 1. Download the latest `dropbear-ksu-v*-arm64.zip` from the Releases page.
-2. Flash it with **KernelSU Manager** or the **Magisk app**.
+2. Flash it with **KernelSU Manager**, **APatch/FolkPatch Manager**, or the **Magisk app**.
 3. Reboot the device.
 
 ### 2. Choose the listening mode (first install only)
@@ -100,7 +100,7 @@ Notes:
 
 ## Service Management
 
-### KernelSU Manager
+### KernelSU, APatch and FolkPatch Managers
 
 - **WebUI:** open the module card / WebUI button. The WebUI offers:
   - Live status (running state, PID, listen address, port, timeouts, port-forwarding flag, latest daemon log).
@@ -110,6 +110,30 @@ Notes:
   - **Listen address / port configuration** (edits `/data/adb/dropbear-ksu/config`; restarts Dropbear if running).
   - **One-click log clearing** (empties `dropbear.log` and the rotated `dropbear.log.1`).
 - **Action button:** toggles the SSH service on/off.
+
+> **Why WebUI start/stop goes through the manager CLI:** Android freezes a
+> cached manager app and every process in its cgroup. A daemon started
+> directly by the WebUI shell would inherit that cgroup and stop responding
+> when the manager is backgrounded. The WebUI therefore routes start, stop and
+> restart through `ksud module action` (KernelSU) or `apd module action`
+> (APatch/FolkPatch), which detach the action script into the root cgroup.
+> The module Action button uses the same paths.
+>
+> If the WebUI reports `No supported root manager action runner found`, use
+> the manager's Action button instead; the module will not start a daemon it
+> cannot detach from the manager cgroup.
+
+### APatch / FolkPatch
+
+- Both the WebUI and the module **Action** button are supported. The WebUI
+  uses `/data/adb/apd module action`; KernelSU and APatch/FolkPatch are
+  detected automatically.
+- `apd module action` does not require the SuperKey; the module never asks
+  for, stores, or passes the key. On older APatch builds that still require
+  SuperKey authentication, use the manager's Action button if the WebUI
+  reports a start failure.
+- The APatch installer exports Magisk-compatible variables, so the module
+  reports the manager it actually detected during installation.
 
 ### Magisk app
 
@@ -158,7 +182,7 @@ The WebUI is a single self-contained page at:
 /data/adb/modules/dropbear-ksu/webroot/index.html
 ```
 
-It talks to `/data/adb/modules/dropbear-ksu/webui.sh` through the KernelSU `ksu.exec` API. The backend supports these subcommands:
+It talks to `/data/adb/modules/dropbear-ksu/webui.sh` through the KernelSU-compatible WebUI API (`ksu.exec`, supported by KernelSU, APatch and FolkPatch). The backend supports these subcommands:
 
 | Command | Description |
 | :--- | :--- |
@@ -197,8 +221,8 @@ It talks to `/data/adb/modules/dropbear-ksu/webui.sh` through the KernelSU `ksu.
 | `customize.sh` | Installer script. |
 | `service.sh` | Boot-time service script (honors `AUTOSTART`). |
 | `start.sh` / `stop.sh` / `action.sh` | Service control scripts. |
-| `webui.sh` | KernelSU WebUI backend. |
-| `webroot/index.html` | KernelSU WebUI page. |
+| `webui.sh` | WebUI backend for KernelSU, APatch and FolkPatch. |
+| `webroot/index.html` | Module WebUI page. |
 | `uninstall.sh` | Uninstall hook (stops the service, keeps persistent data). |
 
 > **Uninstalling the module stops the SSH service but intentionally keeps `/data/adb/dropbear-ksu/`** so re-installations preserve your configuration, authorized keys, and host identity.
@@ -208,7 +232,7 @@ It talks to `/data/adb/modules/dropbear-ksu/webui.sh` through the KernelSU `ksu.
 ## Security Notes
 
 - The private key exported to `/sdcard/Download/dropbear-ksu-client-key` is the only copy of the client key. **Move it off the phone and delete the phone copy.**
-- If the key is lost, use the KernelSU WebUI **“regenerate client key pair”** action; this replaces the old authorized public key with the new one.
+- If the key is lost, use the WebUI **“regenerate client key pair”** action; this replaces the old authorized public key with the new one.
 - If you suspect the host key is compromised, regenerate it from the WebUI. Note that clients will then warn about a changed host key until their `known_hosts` entry is updated.
 - `ALLOW_PORT_FORWARDING` is disabled by default; only enable it if you need TCP forwarding.
 - Listening on `0.0.0.0` exposes the SSH service to the current network. Use a firewall, trust the network, or prefer `127.0.0.1` when remote access is not required.
@@ -262,7 +286,7 @@ Outputs:
 | Path | Description |
 | :--- | :--- |
 | `build/out/` | Compiled binaries (`dropbear`, `dropbearkey`, `dropbearconvert`, `scp`, `sftp-server`). |
-| `dropbear-ksu-v1.4.3-arm64.zip` | Flashable module package (also contains `legal/` license copies). |
+| `dropbear-ksu-v1.5.0-arm64.zip` | Flashable module package (also contains `legal/` license copies). |
 
 ### Running the Tests
 
@@ -276,6 +300,9 @@ done
 
 # Verify that stopping the service also terminates established sessions
 bash tests/stop-sessions.sh
+
+# Verify root-manager (ksud/apd) selection
+bash tests/manager-select.sh
 
 # Build a host sftp-server test fixture, then run a batch SFTP smoke test
 mkdir -p build/sftp-test-root
@@ -294,6 +321,7 @@ test -f /tmp/dropbear-ksu-sftp-test-README.md
 
 ## Changelog
 
+- **v1.5.0**: Added APatch/FolkPatch support. WebUI start/stop/restart now routes through `/data/adb/apd module action` when APatch/FolkPatch is detected, alongside the existing `ksud module action` path. Added manager detection tests and clarified the installer output for APatch/FolkPatch.
 - **v1.4.3**: Stopping or restarting the service now terminates established SSH sessions as well as the listener. The WebUI and module description report any session that is still alive instead of claiming “stopped”.
 - **v1.4.2**: Added a one-click “clear log” action to the WebUI; it empties both the current daemon log and the rotated log file.
 - **v1.4.0**: Added a KernelSU WebUI. The management console supports status detection, quick start/stop/restart, client/server key pair regeneration, and listen IP:port configuration.

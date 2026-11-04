@@ -17,32 +17,48 @@ EXPORT_DIR=/sdcard/Download
 EXPORT_KEY="$EXPORT_DIR/dropbear-ksu-client-key"
 BACKUP_DIR="$DATADIR/backups"
 
-KSUD=/data/adb/ksud
-[ -x "$KSUD" ] || KSUD=/data/adb/ksu/bin/ksud
-MODULE_ID=${MODDIR##*/}
+KSUD=
+for candidate in /data/adb/ksud /data/adb/ksu/bin/ksud; do
+    if [ -x "$candidate" ]; then
+        KSUD=$candidate
+        break
+    fi
+done
 
-# Start/stop/restart must run through "ksud module action" so KernelSU
-# detaches the service from the WebUI/manager process group and cgroup.
-# A daemon started directly from ksu.exec inherits the manager's cgroup:
-# it gets frozen when the manager goes to the background (connections time
-# out) and is killed when the manager is reaped.
+APD=/data/adb/apd
+[ -x "$APD" ] || APD=
+
+# APatch/FolkPatch installs a Magisk-compatible environment and can leave
+# KernelSU files behind, so prefer apd whenever APatch's package config is
+# present, even if a stale ksud also exists.
+APATCH_DATA=
+[ -f /data/adb/ap/package_config ] && APATCH_DATA=1
+
+MODULE_ID=${MODDIR##*/}
+MANAGER=$(select_manager "$KSUD" "$APD" "$APATCH_DATA")
+
+# Start/stop/restart must run through the root manager's module action so the
+# action script (and the daemon it starts) is detached from the WebUI/manager
+# process group and cgroup.  A daemon started directly from ksu.exec inherits
+# the manager's cgroup: it gets frozen when the manager goes to the background
+# (connections time out) and is killed when the manager is reaped.
 run_module_action() {
     DROPBEAR_WEBUI_CMD=$1
     export DROPBEAR_WEBUI_CMD
-    if [ -x "$KSUD" ]; then
-        "$KSUD" module action "$MODULE_ID"
-    else
-        case "$1" in
-            start) "$MODDIR/start.sh" ;;
-            stop) "$MODDIR/stop.sh" ;;
-            restart)
-                if ! "$MODDIR/stop.sh" >/dev/null 2>&1; then
-                    return 1
-                fi
-                "$MODDIR/start.sh"
-                ;;
-        esac
-    fi
+    case "$MANAGER" in
+        ksud)
+            "$KSUD" module action "$MODULE_ID"
+            ;;
+        apd)
+            "$APD" module action "$MODULE_ID"
+            ;;
+        *)
+            # Stopping in place is safe; starting here would inherit the
+            # manager's cgroup and freeze with it.
+            [ "$1" = stop ] || return 1
+            "$MODDIR/stop.sh"
+            ;;
+    esac
 }
 
 validate_address() {
@@ -96,6 +112,7 @@ print_status() {
     echo "HOSTKEY=$HOSTKEY"
     echo "LOGFILE=$LOGFILE"
     echo "PIDFILE=$PIDFILE"
+    echo "MANAGER=${MANAGER:-none}"
 
     echo "---LOG---"
     if [ -r "$LOGFILE" ]; then
@@ -110,7 +127,16 @@ do_status() {
 }
 
 do_start() {
-    run_module_action start
+    if [ -z "$MANAGER" ]; then
+        echo "STARTED=0"
+        echo "ERROR=No supported root manager action runner found (ksud/apd); use the module Action button"
+        return 1
+    fi
+    if ! run_module_action start; then
+        echo "STARTED=0"
+        echo "ERROR=Failed to start service through $MANAGER"
+        return 1
+    fi
     if read_pid; then
         echo "STARTED=1"
         count_sessions
@@ -137,9 +163,14 @@ do_stop() {
 }
 
 do_restart() {
+    if [ -z "$MANAGER" ]; then
+        echo "RESTARTED=0"
+        echo "ERROR=No supported root manager action runner found (ksud/apd); use the module Action button"
+        return 1
+    fi
     if ! run_module_action restart; then
         echo "RESTARTED=0"
-        echo "ERROR=Failed to restart service"
+        echo "ERROR=Failed to restart service through $MANAGER"
         return 1
     fi
     if read_pid; then

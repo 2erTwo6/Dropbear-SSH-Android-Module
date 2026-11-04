@@ -19,7 +19,24 @@ case "$DROPBEAR_REAL" in
 esac
 
 MODULE_PROP="$MODDIR/module.prop"
-BASE_DESCRIPTION="Root Dropbear SSH server for arm64 Android, key authentication only. Supports KernelSU and Magisk."
+BASE_DESCRIPTION="Root Dropbear SSH server for arm64 Android, key authentication only. Supports KernelSU, APatch/FolkPatch and Magisk."
+
+# Choose the root-manager CLI used to run action.sh.  Both KernelSU's ksud and
+# APatch/FolkPatch's apd execute the action script from a detached cgroup.  A
+# daemon started directly by the WebUI shell inherits the manager app's cgroup
+# and is frozen as soon as the manager is cached.
+#
+# select_manager <ksud-path> <apd-path> <apatch-marker>
+select_manager() {
+    local ksud=${1-} apd=${2-} apatch=${3-}
+    if [ -n "$apd" ] && { [ "${APATCH:-}" = true ] || [ -n "$apatch" ]; }; then
+        printf '%s\n' apd
+    elif [ -n "$ksud" ]; then
+        printf '%s\n' ksud
+    elif [ -n "$apd" ]; then
+        printf '%s\n' apd
+    fi
+}
 
 log_message() {
     mkdir -p "$DATADIR"

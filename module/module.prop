@@ -1,6 +1,6 @@
 id=dropbear-ksu
 name=Dropbear SSH, SCP and SFTP
-version=v1.4.3
-versionCode=10403
+version=v1.5.0
+versionCode=10500
 author=2erTwo6
-description=Root Dropbear SSH server for arm64 Android, key authentication only. Supports KernelSU and Magisk. | Status: Stopped
+description=Root Dropbear SSH server for arm64 Android, key authentication only. Supports KernelSU, APatch/FolkPatch and Magisk. | Status: Stopped
